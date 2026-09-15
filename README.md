@@ -34,7 +34,9 @@ cd Cybersecurity_Simulator
 
 ### 2. Setup Backend(Fast API) 
 Navigate to your backend folder: pip install -r requirements.txt  
-Create a .env file and add your API key: GEMINI_API_KEY=your_api_key_here
+Create a .env file and add your API key: GEMINI_API_KEY=your_api_key_here  
+
+
 Run the FastAPI server: uvicorn main:app --reload
 
 ### 3. Setup Frontend
