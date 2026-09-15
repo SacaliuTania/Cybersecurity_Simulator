@@ -3,7 +3,10 @@ An AI-powered tool that generates vulnerabilities and attacks based on the user'
 Built for AI Builders Hackathon
 
 ## How it works 
-
+The application bridges a **React (.tsx)** frontend with a **FastAPI** backend, leveraging the **Gemini API** for dynamic cybersecurity scenario generation, evaluation, and quiz creation:
+1. **Request/Generation:** The user selects a mode via the UI. FastAPI calls the Gemini API to generate scenarios, attacks, or quiz questions based on the parameters.
+2. **User Interaction:** The user analyzes the problem, inputs an answer (text-based solution or multi-choice selection), and submits it.
+3. **AI Evaluation & Feedback:** The backend processes the input, uses Gemini to grade or verify correctness, and returns detailed feedback, scores, or explanations.
 ## Building stages 
 1. Take the API key from Gemini and configure the .env connection to main.py
 2. Creating entry points that take text and generate an output 
