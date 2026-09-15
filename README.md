@@ -12,8 +12,12 @@ Built for AI Builders Hackathon
 5. Build the frontend using React to call the 2 endpoints(generate and evaluation)
 
 ## Technologies 
-Backend: Python, FastAPI, Gemini API
-Frontend: React
+Backend: Python, FastAPI, Gemini API  
+
+
+Frontend: React  
+
+
 Tooling: Visual Studio Code
 
 ## Setup and installation 
