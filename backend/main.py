@@ -17,6 +17,9 @@ from prompts import build_prompt
 import request_type
 from google.genai.types import GenerateContentConfig
 
+import time
+
+
 class SubmissionRequest(BaseModel):
     #session_id: str #utilizatorul trebuie sa introduca session_id-ul la partea de submission. Comentam linia si eliminam aceasta parte
     user_guess: str | None = None
@@ -199,6 +202,106 @@ class KnowledgeSubmission(BaseModel):
     answers: dict[str, str]
 
 
+# @app.get("/knowledge/questions/{difficulty}")
+# def generate_knowledge_questions(
+#     difficulty: str,
+#     response: Response,
+# ):
+#     if difficulty not in ["easy", "medium", "hard"]:
+#         raise HTTPException(status_code=400, detail="Invalid difficulty")
+
+#     prompt = f"""
+# Generate exactly 10 multiple-choice cybersecurity questions.
+
+# Difficulty: {difficulty}
+# Topics: SQL Injection, Phishing, Ransomware.
+
+# Return ONLY valid JSON in this format:
+# {{
+#   "questions": [
+#     {{
+#       "id": "1",
+#       "question": "Question text",
+#       "options": {{
+#         "a": "Option A",
+#         "b": "Option B",
+#         "c": "Option C"
+#       }},
+#       "correct_answer": "a",
+#       "explanation": "Explain what determines the correct attack or answer."
+#     }}
+#   ]
+# }}
+
+# Use different questions. The correct_answer must be only "a", "b", or "c".
+# """
+
+#     try:
+#         api_response = client.models.generate_content(
+#             model="gemini-3.1-flash-lite",
+#             contents=prompt,
+#             config=GenerateContentConfig(
+#             response_mime_type="application/json",
+#             ),
+#         )
+
+#         # cleaned = (
+#         #     api_response.text
+#         #     .replace("```json", "")
+#         #     .replace("```", "")
+#         #     .strip()
+#         # )
+#         cleaned = api_response.text.strip()
+#         data = json.loads(api_response.text)
+#         questions = data["questions"]
+
+#         if len(questions) != 10:
+#             raise ValueError("The API did not return exactly 10 questions")
+
+#         session_id = str(uuid.uuid4())
+#         sessions[session_id] = {
+#             "type": "knowledge",
+#             "questions": questions,
+#         }
+
+#         response.set_cookie(
+#             key="knowledge_session_id",
+#             value=session_id,
+#             httponly=True,
+#             samesite="lax",
+#             secure=False,
+#             path="/",
+#         )
+
+#         public_questions = []
+
+#         for question in questions:
+#             public_questions.append({
+#                 "id": question["id"],
+#                 "question": question["question"],
+#                 "options": question["options"],
+#             })
+
+#         return {"questions": public_questions}
+
+    
+#     except ClientError as error:
+#         print("Gemini error:", repr(error), flush=True)
+
+#         if error.code == 429:
+#             raise HTTPException(
+#                 status_code=429,
+#                 detail="Gemini quota exceeded. Try later or use another project."
+#             )
+
+#         raise HTTPException(status_code=502, detail=str(error))
+
+#     except Exception as error:
+#         print("Quiz generation error:", repr(error), flush=True)
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"{type(error).__name__}: {error}",
+#         )
 @app.get("/knowledge/questions/{difficulty}")
 def generate_knowledge_questions(
     difficulty: str,
@@ -234,21 +337,24 @@ Use different questions. The correct_answer must be only "a", "b", or "c".
 """
 
     try:
-        api_response = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
-            contents=prompt,
-            config=GenerateContentConfig(
-            response_mime_type="application/json",
-            ),
-        )
+        api_response = None
+        for attempt in range(3):
+            try:
+                api_response = client.models.generate_content(
+                    model="gemini-3.1-flash-lite",
+                    contents=prompt,
+                    config=GenerateContentConfig(
+                        response_mime_type="application/json",
+                    ),
+                )
+                break
+            except ServerError as e:
+                print(f"Attempt {attempt+1} failed with 503, retrying...", flush=True)
+                if attempt < 2:
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                raise
 
-        # cleaned = (
-        #     api_response.text
-        #     .replace("```json", "")
-        #     .replace("```", "")
-        #     .strip()
-        # )
-        cleaned = api_response.text.strip()
         data = json.loads(api_response.text)
         questions = data["questions"]
 
@@ -271,7 +377,6 @@ Use different questions. The correct_answer must be only "a", "b", or "c".
         )
 
         public_questions = []
-
         for question in questions:
             public_questions.append({
                 "id": question["id"],
@@ -281,15 +386,20 @@ Use different questions. The correct_answer must be only "a", "b", or "c".
 
         return {"questions": public_questions}
 
+    except ServerError as error:
+        print("Gemini overloaded:", repr(error), flush=True)
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini este temporar supraîncărcat. Încearcă din nou în câteva secunde."
+        )
+
     except ClientError as error:
         print("Gemini error:", repr(error), flush=True)
-
         if error.code == 429:
             raise HTTPException(
                 status_code=429,
                 detail="Gemini quota exceeded. Try later or use another project."
             )
-
         raise HTTPException(status_code=502, detail=str(error))
 
     except Exception as error:
@@ -298,7 +408,6 @@ Use different questions. The correct_answer must be only "a", "b", or "c".
             status_code=500,
             detail=f"{type(error).__name__}: {error}",
         )
-
 
 @app.post("/knowledge/submit")
 def submit_knowledge(
